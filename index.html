@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EMI & Bank Dashboard</title>
+  <!-- Optional: Google Fonts for 'Inter' if you want to load it -->
+  <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
+  <!-- External Libraries for Export and PDF -->
+  <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    /* Define new color variables for easier management */
+    :root {
+        --color-dark-accent: #333446;
+        --color-medium-blue-gray: #7F8CAA;
+        --color-light-mint: #B8CFCE;
+        --color-off-white: #EAEFEF;
+        --color-primary-button-start: #7F8CAA;
+        --color-primary-button-end: #5a6b7e; /* Slightly darker shade of medium-blue-gray */
+        --color-delete-button-start: #e74c3c; /* Muted red */
+        --color-delete-button-end: #c0392b; /* Darker muted red */
+        /* Adjusted colors for paid and pending buttons */
+        --color-paid-button-start: #6BB76B; /* Softer green */
+        --color-paid-button-end: #4C9E4C; /* Darker softer green */
+        --color-pending-button-start: #FFDDAA; /* Softer orange/yellow */
+        --color-pending-button-end: #FFC080; /* Darker softer orange/yellow */
+        --color-pending-button-text: var(--color-dark-accent); /* Dark text for pending button */
+    }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif; /* Prioritize Inter if loaded, otherwise fallback */
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, var(--color-off-white) 0%, var(--color-light-mint) 100%); /* Softer gradient background */
+      color: var(--color-dark-accent); /* Main text color */
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      color: var(--color-dark-accent); /* Darker, richer blue */
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+      font-weight: 700;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+    }
+
+    h2 {
+      color: var(--color-dark-accent);
+      margin-top: 25px; /* Reduced margin-top for tighter spacing */
+      margin-bottom: 15px;
+      border-bottom: 2px solid var(--color-light-mint); /* More prominent, lighter blue border */
+      padding-bottom: 10px;
+      font-size: 1.8em;
+      font-weight: 600;
+    }
+
+    h3 {
+      color: var(--color-dark-accent);
+      font-size: 1.3em;
+      margin-bottom: 15px;
+    }
+
+    .section {
+      background: #ffffff;
+      padding: 30px; /* Increased padding */
+      border-radius: 15px; /* More rounded corners */
+      margin-top: 25px;
+      width: 100%;
+      max-width: 1000px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1); /* More pronounced shadow */
+      border: 1px solid var(--color-off-white); /* Subtle border */
+      box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    }
+
+    input[type="text"], input[type="number"], input[type="password"], select {
+      padding: 12px 18px; /* Larger padding */
+      margin: 8px 5px;
+      border-radius: 8px; /* More rounded */
+      border: 1px solid var(--color-light-mint); /* Softer border */
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--color-medium-blue-gray);
+      box-shadow: 0 0 0 0.3rem rgba(127, 140, 170, 0.25); /* Adjusted shadow color */
+      outline: none;
+      background-color: #f8faff;
+    }
+
+    button {
+      padding: 12px 22px; /* Larger buttons */
+      margin: 8px 5px;
+      border-radius: 8px; /* More rounded */
+      border: none;
+      background: linear-gradient(180deg, var(--color-primary-button-start) 0%, var(--color-primary-button-end) 100%); /* Gradient button */
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* More pronounced shadow */
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: linear-gradient(180deg, var(--color-primary-button-end) 0%, #4a5c6e 100%); /* Darker on hover */
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Red delete button specific styling */
+    .delete-btn {
+        background: linear-gradient(180deg, var(--color-delete-button-start) 0%, var(--color-delete-button-end) 100%);
+    }
+
+    .delete-btn:hover {
+        background: linear-gradient(180deg, var(--color-delete-button-end) 0%, #902c22 100%);
+    }
+
+
+    /* EMI Table Wrapper for backframe effect */
+    .emi-table-wrapper, .bank-table-wrapper { /* Apply wrapper style to bank table as well */
+        background: #fdfdfd; /* Light background for the wrapper */
+        border: 1px solid var(--color-light-mint);
+        border-radius: 12px; /* Slightly more rounded than inner table */
+        padding: 20px; /* Padding inside the frame */
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08); /* Soft shadow */
+        margin-top: 20px; /* Space from Add EMI form */
+        overflow-x: auto; /* Allow horizontal scrolling for table if it overflows */
+    }
+
+    table {
+      width: 100%;
+      min-width: 700px; /* Ensure table doesn't get too narrow, allow scrolling */
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 0; /* No top margin as it's inside wrapper */
+      border-radius: 10px; /* Even more rounded */
+      overflow: hidden;
+      box-shadow: none; /* Remove table's individual shadow as wrapper has one */
+    }
+
+    th, td {
+      padding: 15px 12px; /* Increased padding for table cells */
+      border: 1px solid var(--color-off-white); /* Softer border color */
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle; /* Center content vertically */
+    }
+
+    th {
+      background-color: var(--color-light-mint); /* Lighter header background */
+      color: var(--color-dark-accent);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      text-transform: uppercase;
+      font-size: 0.9em;
+    }
+
+    tr:nth-child(even) {
+      background-color: var(--color-off-white); /* Lighter alternating row */
+    }
+
+    tr:hover {
+      background-color: hsl(210, 15%, 90%); /* Light hover effect */
+    }
+
+    .paid-cell {
+      background-color: mix(var(--color-light-mint), white, 70%); /* Very light green-blue */
+      color: var(--color-dark-accent); /* Darker text */
+      font-weight: 500;
+    }
+
+    .pending-cell {
+      background-color: mix(var(--color-off-white), white, 50%); /* Very light, slightly desaturated yellow-orange */
+      color: var(--color-dark-accent); /* Darker text */
+      font-weight: 500;
+    }
+
+    /* Style for toggle buttons in table cells */
+    .paid-cell button, .pending-cell button {
+        padding: 6px 10px;
+        font-size: 0.8em;
+        border-radius: 6px;
+        box-shadow: none; /* No extra shadow on these small buttons */
+    }
+
+    .paid-cell button {
+        background: linear-gradient(180deg, var(--color-paid-button-start) 0%, var(--color-paid-button-end) 100%); /* Green gradient for Paid */
+        color: white; /* Ensure text is white for contrast */
+    }
+    .paid-cell button:hover {
+        background: linear-gradient(180deg, var(--color-paid-button-end) 0%, #408840 100%); /* Slightly darker hover */
+    }
+
+    .pending-cell button {
+        background: linear-gradient(180deg, var(--color-pending-button-start) 0%, var(--color-pending-button-end) 100%); /* Orange/Yellow gradient for Pending */
+        color: var(--color-pending-button-text); /* Dark text for contrast */
+    }
+    .pending-cell button:hover {
+        background: linear-gradient(180deg, var(--color-pending-button-end) 0%, #e0a050 100%); /* Slightly darker hover */
+    }
+
+    /* Style for editable amount span */
+    .editable-amount {
+        cursor: pointer;
+        border-bottom: 1px dashed var(--color-medium-blue-gray);
+        display: inline-block;
+        margin-top: 8px; /* More spacing */
+        font-size: 1.1em;
+        padding-bottom: 2px;
+    }
+
+    .editable-amount:hover {
+        background-color: #e6f7ff;
+        border-color: #0056b3;
+    }
+
+    .editable-amount-input {
+        width: 90px; /* Slightly wider */
+        padding: 6px;
+        margin: 0;
+        text-align: center;
+        font-size: 0.95rem;
+        border: 2px solid var(--color-medium-blue-gray); /* Thicker border on edit */
+        border-radius: 6px;
+    }
+
+    .toggle {
+      margin-top: 15px;
+      cursor: pointer;
+      color: var(--color-medium-blue-gray);
+      text-decoration: underline;
+      display: inline-block;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .toggle:hover {
+      color: var(--color-dark-accent);
+    }
+
+    .current-month-header {
+      background-color: #fff3cd; /* Lighter yellow */
+      color: #665000;
+      font-weight: bold;
+      border-bottom: 2px solid #ffda6a;
+    }
+
+    .summary-item {
+      padding: 10px 0; /* More padding */
+      border-bottom: 1px dashed var(--color-off-white); /* Softer dashed line */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.05em;
+    }
+
+    .summary-item:last-child {
+      border-bottom: none;
+    }
+
+    .summary-item strong {
+      color: var(--color-dark-accent);
+    }
+
+    .summary-total {
+      font-size: 1.25em; /* Larger total font */
+      font-weight: 700;
+      color: var(--color-dark-accent);
+      margin-top: 15px;
+      padding-top: 10px;
+      border-top: 2px solid var(--color-off-white);
+      text-align: right;
+    }
+
+    .add-form {
+      margin-top: 25px;
+      padding: 20px;
+      background: #f9fcff; /* Very light blue background */
+      border-radius: 10px;
+      border: 1px dashed var(--color-light-mint);
+      display: flex; /* Use flexbox for better alignment */
+      flex-wrap: wrap; /* Allow items to wrap */
+      gap: 10px; /* Space between inputs/buttons */
+      align-items: center;
+    }
+
+    .add-form input {
+        flex-grow: 1; /* Inputs can grow */
+        min-width: 150px; /* Minimum width for inputs */
+    }
+    .add-form button {
+        flex-shrink: 0; /* Button does not shrink */
+    }
+
+    /* Styles for the login screen */
+    #loginScreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85); /* Darker overlay */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        flex-direction: column;
+    }
+
+    .login-box {
+        background: linear-gradient(135deg, #ffffff 0%, var(--color-off-white) 100%); /* Light gradient */
+        padding: 50px; /* More padding */
+        border-radius: 15px; /* More rounded */
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4); /* Stronger shadow */
+        text-align: center;
+        border: 1px solid var(--color-light-mint);
+    }
+
+    .login-box input {
+        display: block;
+        margin: 20px auto; /* More margin */
+        width: 250px; /* Wider input */
+    }
+
+    .login-box button {
+        width: 80%; /* Wider button */
+        padding: 15px;
+        font-size: 1.2rem;
+    }
+
+    .error-message {
+        color: var(--color-delete-button-start); /* Using the muted red for error */
+        margin-top: 15px;
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+
+    .save-button-container {
+        text-align: right;
+        margin-top: 25px;
+    }
+
+    .toolbar {
+        margin-top: 25px; /* Increased margin */
+        margin-bottom: 20px;
+        display: flex;
+        gap: 15px; /* Increased gap */
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 10px;
+        background: var(--color-off-white); /* Toolbar background */
+        border-radius: 10px;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .toolbar label {
+        font-weight: 500;
+        color: var(--color-dark-accent);
+    }
+    .toolbar select {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--color-light-mint);
+        background-color: white;
+    }
+
+
+    /* Summary boxes layout */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr; /* Default to single column for small screens */
+      gap: 25px;
+      margin-bottom: 25px;
+      width: 100%;
+      max-width: 1000px;
+      box-sizing: border-box;
+    }
+
+    @media (min-width: 768px) {
+      .summary-grid {
+        grid-template-columns: 1fr 1fr; /* Two columns for larger screens */
+      }
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7); /* Darker overlay */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000; /* Higher z-index for modals */
+        opacity: 0; /* Start hidden for animation */
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    .modal-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-content {
+        background: linear-gradient(135deg, #ffffff 0%, var(--color-off-white) 100%);
+        padding: 35px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        text-align: center;
+        max-width: 550px; /* Slightly wider modal */
+        width: 90%;
+        transform: translateY(-20px); /* Start slightly above for bounce effect */
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        border: 1px solid var(--color-light-mint);
+    }
+    .modal-overlay.visible .modal-content {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    .modal-content p {
+        font-size: 1.1em;
+        margin-bottom: 20px;
+        line-height: 1.5;
+        color: var(--color-dark-accent);
+    }
+    .modal-content h3 {
+        color: var(--color-dark-accent);
+        font-size: 1.6em;
+        margin-bottom: 20px;
+        font-weight: 700;
+    }
+    .modal-content button {
+        margin: 10px;
+        padding: 12px 25px;
+        border-radius: 8px;
+        font-size: 1em;
+        min-width: 100px;
+    }
+    .modal-content .confirm-btn {
+        background: linear-gradient(180deg, var(--color-delete-button-start) 0%, var(--color-delete-button-end) 100%);
+    }
+    .modal-content .confirm-btn:hover {
+        background: linear-gradient(180deg, var(--color-delete-button-end) 0%, #902c22 100%);
+    }
+    .modal-content .cancel-btn, .modal-content #modalOkBtn {
+        background: linear-gradient(180deg, var(--color-medium-blue-gray) 0%, #5a6268 100%); /* Using medium blue-gray for neutral buttons */
+    }
+    .modal-content .cancel-btn:hover, .modal-content #modalOkBtn:hover {
+        background: linear-gradient(180deg, #5a6268 0%, #494f54 100%);
+    }
+
+    /* --- Mobile Responsiveness --- */
+    @media (max-width: 767px) {
+        body {
+            padding: 10px; /* Reduce overall padding */
+        }
+
+        h1 {
+            font-size: 1.8em; /* Smaller heading on mobile */
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 1.4em;
+            margin-top: 20px;
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .section {
+            padding: 15px; /* Less padding in sections */
+            margin-top: 15px;
+            border-radius: 10px; /* Slightly less rounded */
+        }
+
+        input[type="text"], input[type="number"], input[type="password"], select {
+            padding: 10px 12px; /* Smaller input padding */
+            margin: 5px 0; /* Stack inputs vertically */
+            width: 100%; /* Take full width */
+        }
+
+        button {
+            padding: 10px 15px; /* Smaller button padding */
+            margin: 5px 0; /* Stack buttons vertically */
+            width: 100%; /* Take full width */
+            font-size: 0.95rem;
+        }
+        
+        .toolbar button {
+            width: auto; /* Allow buttons in toolbar to size naturally */
+            flex-grow: 1; /* They can grow within flex container */
+            margin: 5px; /* Restore horizontal margin */
+        }
+        .toolbar label, .toolbar select {
+            width: 100%; /* Force labels and selects to stack */
+            margin: 5px 0;
+        }
+
+        .add-form {
+            padding: 15px;
+            gap: 5px; /* Smaller gap in forms */
+            flex-direction: column; /* Stack form elements */
+            align-items: stretch; /* Stretch to fill width */
+        }
+        .add-form input, .add-form button, .add-form select {
+            width: 100%; /* Ensure form elements take full width */
+            margin: 5px 0; /* Vertical margin only */
+        }
+
+        /* Adjust table cell padding and font for mobile */
+        th, td {
+            padding: 8px 5px;
+            font-size: 0.8em;
+        }
+
+        /* Adjust table button and editable amount font for mobile */
+        .paid-cell button, .pending-cell button {
+            padding: 4px 6px;
+            font-size: 0.7em;
+        }
+        .editable-amount {
+            font-size: 0.9em;
+            margin-top: 4px;
+        }
+        .editable-amount-input {
+            width: 60px; /* Smaller input for table cells */
+            padding: 4px;
+            font-size: 0.8em;
+        }
+
+        .summary-total {
+            font-size: 1.1em; /* Smaller total font */
+            margin-top: 10px;
+            padding-top: 8px;
+        }
+
+        .login-box {
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%; /* Wider on mobile */
+            max-width: none; /* No max-width restriction */
+        }
+
+        .login-box input {
+            width: 90%; /* Login input wider */
+        }
+
+        .login-box button {
+            width: 90%; /* Login button wider */
+        }
+
+        /* Modals on mobile */
+        .modal-content {
+            padding: 20px;
+            border-radius: 10px;
+            width: 95%; /* Make modals take up more screen width */
+            max-width: none;
+        }
+        .modal-content button {
+            padding: 10px 15px;
+            font-size: 0.9em;
+            min-width: 80px;
+        }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loginScreen" class="modal-overlay visible">
+    <div class="login-box modal-content">
+      <h2>Enter PIN to Access Dashboard</h2>
+      <input type="password" id="pinInput" placeholder="Enter PIN" onkeydown="if(event.key === 'Enter') login();" autocomplete="off" autofocus>
+      <button onclick="login()">Login</button>
+      <div id="errorMessage" class="error-message"></div>
+    </div>
+  </div>
+
+  <div id="dashboardContent" style="display:none;">
+    <h1>📊 EMI & Bank Dashboard</h1>
+
+    <!-- Monthly EMI Summaries Side-by-Side -->
+    <div class="summary-grid">
+      <!-- Total Monthly Payable -->
+      <div class="section">
+        <h2>Monthly EMI Summary (To Pay)</h2>
+        <div id="monthlySummaryToPay"></div>
+      </div>
+
+      <!-- Total Monthly Paid -->
+      <div class="section">
+        <h2>Monthly EMI Summary (Paid)</h2>
+        <div id="monthlySummaryPaid"></div>
+      </div>
+    </div>
+
+    <!-- EMI Table -->
+    <div class="section">
+      <h2>EMI List</h2>
+
+      <div class="add-form">
+        <h3>Add New EMI</h3>
+        <input type="text" id="newEmiName" placeholder="EMI Name" />
+        <input type="number" id="newEmiAmount" placeholder="Amount (for fixed EMIs)" />
+        <input type="number" id="newEmiDueDateDay" placeholder="Due Day (1-31)" min="1" max="31" />
+        <button id="addEmiBtn" onclick="addEmi()">Add EMI</button>
+        <button id="updateEmiBtn" onclick="updateEmiEntry()" class="hidden">Update EMI</button>
+        <button id="cancelEditEmiBtn" onclick="cancelEmiEdit()" class="hidden">Cancel Edit</button>
+      </div>
+
+      <div class="toolbar">
+          <button onclick="exportToExcel()">Export EMI Data to Excel</button>
+          <button onclick="downloadPdf()">Download EMI Report (PDF)</button>
+          <label for="monthFilter">Filter by Month:</label>
+          <select id="monthFilter" onchange="filterByMonth(this.value)">
+              <option value="All">All Months</option>
+              <!-- Options will be populated by JavaScript -->
+          </select>
+          <label for="emiSelectForEdit">Select EMI for Edit:</label>
+          <select id="emiSelectForEdit" onchange="filterAndLoadEmiFromDropdown(this.value)" style="flex-grow: 1;">
+              <option value="-1">Select an EMI...</option>
+              <!-- Options populated by JS -->
+          </select>
+          <button onclick="clearEmiFilter()">Clear EMI Filter</button> <!-- New button for filter -->
+      </div>
+
+      <div class="emi-table-wrapper">
+        <table id="emiTable">
+          <thead>
+            <tr>
+              <th>EMI Name</th>
+              <th>Amount</th>
+              <th>Deadline</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr id="emiTableTotalRow">
+              <td colspan="3"><strong>Total Remaining Pay EMIs:</strong></td>
+              <!-- Monthly remaining totals will be rendered here dynamically -->
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="save-button-container">
+        <button onclick="saveData()">Save Changes</button>
+      </div>
+    </div>
+
+    <!-- Bank Details -->
+    <div class="section">
+      <h2>Bank Information</h2>
+      <div class="toggle" onclick="toggleBank()">Click to Show/Hide Bank Info</div>
+      <div id="bankSection" style="display:none; margin-top:15px;">
+        <div class="add-form">
+          <h3>Add New Bank Account</h3>
+          <input type="text" id="newBankName" placeholder="Bank Name" />
+          <input type="text" id="newBankAcc" placeholder="Account No" />
+          <input type="text" id="newBankIFSC" placeholder="IFSC" />
+          <input type="text" id="newBankBranch" placeholder="Branch" />
+          <input type="text" id="newBankCard" placeholder="Card Num" />
+          <input type="text" id="newBankExp" placeholder="Expiry (MM/YY)" />
+          <input type="text" id="newBankCVV" placeholder="CVV" />
+          <button id="addBankBtn" onclick="addBank()">Add Bank</button>
+          <button id="updateBankBtn" onclick="updateBankEntry()" class="hidden">Update Bank</button>
+          <button id="cancelEditBankBtn" onclick="cancelBankEdit()" class="hidden">Cancel Edit</button>
+        </div>
+
+        <div class="toolbar" style="margin-top: 15px;">
+            <label for="bankSelectForEdit">Select Bank for Edit:</label>
+            <select id="bankSelectForEdit" onchange="loadBankForEdit(this.value)" style="flex-grow: 1;">
+                <option value="-1">Select a Bank...</option>
+            </select>
+        </div>
+
+        <div class="bank-table-wrapper">
+          <table id="bankTable">
+            <thead>
+              <tr>
+                <th>Bank</th>
+                <th>Account No</th>
+                <th>IFSC</th>
+                <th>Branch</th>
+                <th>Card Num</th>
+                <th>Expiry</th>
+                <th>CVV</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bankTableBody"></tbody>
+            <tfoot>
+                <tr id="bankTableTotalRow">
+                    <td colspan="8"></td> <!-- Adjusted colspan to 8 -->
+                </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div> <!-- End of dashboardContent -->
+
+  <!-- Custom Modal for Alerts and Confirmations -->
+  <div id="customModal" class="modal-overlay">
+      <div class="modal-content">
+          <p id="modalMessage"></p>
+          <div id="modalButtons">
+              <button id="modalConfirmBtn" class="confirm-btn hidden">Confirm</button>
+              <button id="modalCancelBtn" class="cancel-btn hidden">Cancel</button>
+              <button id="modalOkBtn" class="hidden">OK</button>
+          </div>
+      </div>
+  </div>
+
+  <script>
+    // --- PIN Login Logic ---
+    const CORRECT_PIN = "9493699"; // Your specified PIN
+    const pinInput = document.getElementById('pinInput');
+    const errorMessage = document.getElementById('errorMessage');
+    const loginScreen = document.getElementById('loginScreen');
+    const dashboardContent = document.getElementById('dashboardContent');
+
+    function login() {
+      const enteredPIN = pinInput.value;
+      if (enteredPIN === CORRECT_PIN) {
+        loginScreen.classList.remove('visible'); // Hide login modal
+        // Add a slight delay before setting display:none to allow fade-out if CSS transition is applied
+        setTimeout(() => {
+            loginScreen.style.display = 'none';
+        }, 300); // Match CSS transition duration
+        dashboardContent.style.display = 'block';
+        errorMessage.textContent = ''; // Clear any previous error
+        initializeDashboard(); // Initialize the dashboard after successful login
+      } else {
+        errorMessage.textContent = 'Incorrect PIN. Please try again.';
+        pinInput.value = ''; // Clear the input field
+        pinInput.focus(); // Keep focus on the input
+      }
+    }
+
+    // --- Core Dashboard Logic ---
+
+    // Helper to format currency
+    const formatCurrency = (amount) => `₹${amount.toLocaleString('en-IN')}`;
+
+    // Helper to add ordinal suffix to day (e.g., 1st, 2nd, 3rd, 4th)
+    function getOrdinalSuffix(day) {
+        if (day > 3 && day < 21) return 'th';
+        switch (day % 10) {
+            case 1: return 'st';
+            case 2: return 'nd';
+            case 3: return 'rd';
+            default: return 'th';
+        }
+    }
+
+    // Generate months dynamically (June 2025 - October 2026)
+    const generateMonths = () => {
+      const start = new Date(2025, 5, 1); // June 2025 (Month 5 is June, 0-indexed)
+      const end = new Date(2026, 9, 1);   // October 2026 (Month 9 is October, 0-indexed)
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      let currentMonth = new Date(start);
+      const monthsArray = [];
+      while (currentMonth <= end) {
+        monthsArray.push(`${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`);
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+      }
+      return monthsArray;
+    };
+
+    let months = generateMonths();
+    const currentMonthName = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+    // Load data from Local Storage or use defaults
+    let emiList = JSON.parse(localStorage.getItem('emiList')) || [
+      { name: "Access 125 Scooty", amount: 4009, paidMonths: months.map(m => ({ month: m, isPaid: false })), finalMonthAmount: 4263, dueDateDay: 10 },
+      { name: "Education Loan", amount: 6156, paidMonths: months.map(m => ({ month: m, isPaid: false })), dueDateDay: 5 },
+      { name: "iPhone 15+", amount: 5100, paidMonths: months.map(m => ({ month: m, isPaid: false })), dueDateDay: 15 },
+      { name: "KreditBee", amount: 5189, paidMonths: months.map(m => ({ month: m, isPaid: false })), dueDateDay: 20 },
+      { // Room Share EMI with variable monthly amounts
+        name: "Room Share",
+        monthlyAmounts: {
+          "June 2025": 3000, "July 2025": 3200, "August 2025": 2800, "September 2025": 3100,
+          "October 2025": 3300, "November 2025": 2900, "December 2025": 3500, "January 2026": 3150,
+          "February 2026": 3050, "March 2026": 3250, "April 2026": 2950, "May 2026": 3100,
+          "June 2026": 3300, "July 2026": 3000, "August 2026": 3200, "September 2026": 3100, "October 2026": 3400
+        },
+        paidMonths: months.map(m => ({ month: m, isPaid: false })),
+        dueDateDay: 25
+      }
+    ];
+
+    // Ensure all EMIs have a paidMonths array correctly structured and dueDateDay is set
+    emiList.forEach(emi => {
+        if (!emi.paidMonths || !Array.isArray(emi.paidMonths) || emi.paidMonths.some(item => typeof item !== 'object' || !('month' in item) || !('isPaid' in item))) {
+            const initialPaidMonths = (emi.paidMonths && Array.isArray(emi.paidMonths)) ? emi.paidMonths.map(m => m.month || m) : [];
+            emi.paidMonths = months.map(month => ({
+                month: month,
+                isPaid: initialPaidMonths.includes(month)
+            }));
+        }
+        if (typeof emi.dueDateDay !== 'number' || emi.dueDateDay < 1 || emi.dueDateDay > 31) {
+            emi.dueDateDay = 1; // Default deadline to 1st of the month
+        }
+    });
+
+    let banks = JSON.parse(localStorage.getItem('bankList')) || [
+      { bank: "HDFC Bank", acc: "50100658772241", ifsc: "HDFC0001986", branch: "GUDIVADA", card: "5260990118631742", exp: "12/31", cvv: "294" },
+      { bank: "State Bank of India", acc: "39018958400", ifsc: "SBIN0000841", branch: "GUDIVADA", card: "4121510025873492", exp: "07/28", cvv: "523" },
+      { bank: "Kotak Mahindra Bank", acc: "8148438761", ifsc: "KKBK0000554", branch: "SECUNDRABAD-S D ROAD", card: "4594530361903552", exp: "11/31", cvv: "718" },
+      { bank: "Bajaj Finserv", acc: "Amma", ifsc: "", branch: "", card: "2030403557785835", exp: "08/34", cvv: "" },
+      { bank: "IDFC First Bank", acc: "", ifsc: "", branch: "", card: "4405232013524428", exp: "10/28", cvv: "537" },
+      { bank: "IDFC UPI", acc: "", ifsc: "", branch: "", card: "6530181025010368", exp: "10/28", cvv: "93" },
+      { bank: "Axis Bank", acc: "98765432109876", ifsc: "AXIS0001234", branch: "HYDERABAD", card: "1234567890123456", exp: "05/27", cvv: "123" }
+    ];
+
+    let editingBankIndex = -1; // -1 means no bank is being edited
+    let editingEmiIndex = -1; // -1 means no EMI is being edited
+    let selectedEmiFilterIndex = -1; // -1 means no EMI is filtered, show all
+
+    // --- Custom Modal Functions ---
+    let resolveModalPromise;
+
+    /**
+     * Shows a custom alert modal.
+     * @param {string} message - The message to display.
+     */
+    function showAlert(message) {
+        const modal = document.getElementById('customModal');
+        document.getElementById('modalMessage').innerText = message;
+        document.getElementById('modalConfirmBtn').classList.add('hidden');
+        document.getElementById('modalCancelBtn').classList.add('hidden');
+        document.getElementById('modalOkBtn').classList.remove('hidden');
+        modal.classList.add('visible');
+
+        return new Promise(resolve => {
+            resolveModalPromise = resolve;
+            document.getElementById('modalOkBtn').onclick = () => {
+                modal.classList.remove('visible');
+                resolve(true);
+            };
+        });
+    }
+
+    /**
+     * Shows a custom confirmation modal.
+     * @param {string} message - The confirmation message.
+     * @returns {Promise<boolean>} - Resolves to true if confirmed, false if canceled.
+     */
+    function showConfirm(message) {
+        const modal = document.getElementById('customModal');
+        document.getElementById('modalMessage').innerText = message;
+        document.getElementById('modalConfirmBtn').classList.remove('hidden');
+        document.getElementById('modalCancelBtn').classList.remove('hidden');
+        document.getElementById('modalOkBtn').classList.add('hidden');
+        modal.classList.add('visible');
+
+        return new Promise(resolve => {
+            resolveModalPromise = resolve;
+            document.getElementById('modalConfirmBtn').onclick = () => {
+                modal.classList.remove('visible');
+                resolve(true);
+            };
+            document.getElementById('modalCancelBtn').onclick = () => {
+                modal.classList.remove('visible');
+                resolve(false);
+            };
+        });
+    }
+
+    /**
+     * Shows a custom prompt modal.
+     * @param {string} message - The prompt message.
+     * @param {string} defaultValue - The default value for the input.
+     * @returns {Promise<string|null>} - Resolves to the input value or null if canceled.
+     */
+    function showPrompt(message, defaultValue = '') {
+        const modal = document.getElementById('customModal');
+        // Ensure the input field has the base styling, not overriding the global one
+        document.getElementById('modalMessage').innerHTML = `
+            <p>${message}</p>
+            <input type="text" id="promptInput" value="${defaultValue}" class="modal-input" />
+        `;
+        // Apply styling for inputs inside modal specifically if needed
+        const promptInput = document.getElementById('promptInput');
+        if (promptInput) {
+            promptInput.style.width = '80%';
+            promptInput.style.padding = '8px';
+            promptInput.style.marginTop = '10px';
+            promptInput.style.borderRadius = '4px';
+            promptInput.style.border = '1px solid #ccc';
+        }
+
+        document.getElementById('modalConfirmBtn').classList.remove('hidden');
+        document.getElementById('modalCancelBtn').classList.remove('hidden');
+        document.getElementById('modalOkBtn').classList.add('hidden');
+        document.getElementById('modalConfirmBtn').innerText = 'OK';
+        document.getElementById('modalCancelBtn').innerText = 'Cancel';
+        modal.classList.add('visible');
+
+        return new Promise(resolve => {
+            resolveModalPromise = resolve;
+            document.getElementById('modalConfirmBtn').onclick = () => {
+                const inputValue = document.getElementById('promptInput').value;
+                modal.classList.remove('visible');
+                resolve(inputValue);
+                document.getElementById('modalConfirmBtn').innerText = 'Confirm'; // Reset button text
+                document.getElementById('modalCancelBtn').innerText = 'Cancel'; // Reset button text
+            };
+            document.getElementById('modalCancelBtn').onclick = () => {
+                modal.classList.remove('visible');
+                resolve(null);
+                document.getElementById('modalConfirmBtn').innerText = 'Confirm'; // Reset button text
+                document.getElementById('modalCancelBtn').innerText = 'Cancel'; // Reset button text
+            };
+        });
+    }
+
+    // Save data to Local Storage
+    async function saveData() {
+      localStorage.setItem('emiList', JSON.stringify(emiList));
+      localStorage.setItem('bankList', JSON.stringify(banks));
+      await showAlert('Changes saved successfully!');
+    }
+
+    // Helper function to get EMI amount for a specific month
+    function getEmiAmountForMonth(emi, month) {
+      if (emi.name === "Access 125 Scooty" && month === "October 2026" && emi.finalMonthAmount) {
+        return emi.finalMonthAmount;
+      }
+      if (emi.monthlyAmounts && typeof emi.monthlyAmounts[month] === 'number') {
+        return emi.monthlyAmounts[month];
+      }
+      // If monthlyAmounts is not defined, fall back to the base 'amount' for fixed EMIs
+      return emi.amount || 0;
+    }
+
+    // Current filter state for months
+    let currentMonthFilter = "All";
+
+    // New EMI Editing Functions - Defined earlier to prevent ReferenceError
+    /**
+     * Loads the details of a selected EMI into the input fields for editing.
+     * @param {string} selectedIndex - The index of the EMI in the 'emiList' array.
+     */
+    function loadEmiForEdit(selectedIndex) {
+        const index = parseInt(selectedIndex);
+        if (index === -1) {
+            cancelEmiEdit();
+            return;
+        }
+
+        editingEmiIndex = index;
+        const emi = emiList[index];
+
+        document.getElementById('newEmiName').value = emi.name || '';
+        // If it's a fixed EMI, populate with its amount. If it's variable, this field might not be directly relevant
+        document.getElementById('newEmiAmount').value = emi.amount || ''; 
+        document.getElementById('newEmiDueDateDay').value = emi.dueDateDay || '';
+
+        // Show update button, hide add button
+        document.getElementById('addEmiBtn').classList.add('hidden');
+        document.getElementById('updateEmiBtn').classList.remove('hidden');
+        document.getElementById('cancelEditEmiBtn').classList.remove('hidden');
+    }
+
+    /**
+     * Resets the EMI input form and button states.
+     */
+    function cancelEmiEdit() {
+        editingEmiIndex = -1; // Reset editing index
+        document.getElementById('newEmiName').value = '';
+        document.getElementById('newEmiAmount').value = '';
+        document.getElementById('newEmiDueDateDay').value = '';
+
+        document.getElementById('emiSelectForEdit').value = -1; // Reset dropdown
+
+        // Show add button, hide update and cancel buttons
+        document.getElementById('addEmiBtn').classList.remove('hidden');
+        document.getElementById('updateEmiBtn').classList.add('hidden');
+        document.getElementById('cancelEditEmiBtn').classList.add('hidden');
+    }
+
+    // New function to filter and load EMI for editing (from table click)
+    function filterAndLoadEmi(index) {
+        selectedEmiFilterIndex = index;
+        document.getElementById('emiSelectForEdit').value = index; // Update dropdown
+        loadEmiForEdit(index); // Load into edit fields
+        renderEmiTable(); // Re-render table to show only this EMI
+    }
+
+    // New function to handle dropdown selection for filtering and editing
+    function filterAndLoadEmiFromDropdown(selectedIndex) {
+        const index = parseInt(selectedIndex);
+        if (index === -1) {
+            clearEmiFilter(); // If "Select an EMI..." is chosen, clear filter
+        } else {
+            filterAndLoadEmi(index); // Otherwise, apply filter and load
+        }
+    }
+
+    // New function to clear EMI filter
+    function clearEmiFilter() {
+        selectedEmiFilterIndex = -1; // Reset filter
+        document.getElementById('emiSelectForEdit').value = -1; // Reset dropdown to "Select an EMI..."
+        renderEmiTable(); // Re-render to show all EMIs
+        cancelEmiEdit(); // Clear edit form
+    }
+
+    // Function to render the EMI table based on filter
+    function renderEmiTable() {
+      const tbody = document.querySelector("#emiTable tbody");
+      const theadRow = document.querySelector("#emiTable thead tr");
+      const tfootRow = document.getElementById("emiTableTotalRow");
+      const emiSelectForEdit = document.getElementById('emiSelectForEdit');
+
+      // Clear old headers and rows
+      theadRow.innerHTML = `<th>EMI Name</th><th>Amount</th><th>Deadline</th>`;
+      tbody.innerHTML = "";
+      tfootRow.innerHTML = `<td colspan="3"><strong>Total Remaining Pay EMIs:</strong></td>`; // Reset total row
+      // Clear dropdown options before repopulating, but avoid clearing the "Select an EMI..." option
+      emiSelectForEdit.innerHTML = '<option value="-1">Select an EMI...</option>';
+
+
+      // Add month headers based on filter
+      const monthsToDisplay = currentMonthFilter === "All" ? months : [currentMonthFilter];
+      monthsToDisplay.forEach(month => {
+        const th = document.createElement("th");
+        th.textContent = month;
+        if (month === currentMonthName) {
+          th.classList.add('current-month-header');
+        }
+        theadRow.appendChild(th);
+      });
+      theadRow.innerHTML += `<th>Status</th><th>Actions</th>`;
+
+      // Initialize totals for the footer row
+      const monthlyTableRemainingTotals = {}; // Changed to remaining totals
+      monthsToDisplay.forEach(month => monthlyTableRemainingTotals[month] = 0);
+      let grandTotalRemaining = 0; // Changed to grand total remaining
+
+      emiList.forEach((emi, i) => {
+        // Only render if no filter is active, or if it's the selected EMI
+        const isEmiVisible = selectedEmiFilterIndex === -1 || i === selectedEmiFilterIndex;
+
+        // Populate the EMI selection dropdown regardless of filter, but mark if currently selected for filtering
+        const option = document.createElement('option');
+        option.value = i; // Store the index for easy lookup
+        option.textContent = `${i + 1}. ${emi.name}`;
+        if (i === selectedEmiFilterIndex) {
+            option.selected = true; // Set selected for the filtered EMI
+        }
+        emiSelectForEdit.appendChild(option);
+
+        if (isEmiVisible) {
+            const row = document.createElement("tr");
+
+            // Determine what to display in the main 'Amount' column
+            // This 'Amount' column on the main table always reflects the first *unpaid* month's amount, or last paid.
+            let displayAmountPrimary;
+            if (emi.monthlyAmounts) {
+                const firstUnpaidMonthData = emi.paidMonths.find(m => !m.isPaid);
+                if (firstUnpaidMonthData) {
+                    const amountForFirstUnpaid = getEmiAmountForMonth(emi, firstUnpaidMonthData.month);
+                    displayAmountPrimary = `${formatCurrency(amountForFirstUnpaid)}<br><small>(${firstUnpaidMonthData.month.split(' ')[0]})</small>`;
+                } else {
+                    const lastMonthData = emi.paidMonths[emi.paidMonths.length -1]; // Get the last month data
+                    if (lastMonthData) {
+                        const amountForLastMonth = getEmiAmountForMonth(emi, lastMonthData.month);
+                        displayAmountPrimary = `${formatCurrency(amountForLastMonth)}<br><small>(Last Paid)</small>`;
+                    } else {
+                        displayAmountPrimary = 'N/A'; // Fallback if no monthly amounts or paid months
+                    }
+                }
+            } else {
+                // For fixed EMIs, display their fixed amount
+                displayAmountPrimary = formatCurrency(emi.amount);
+            }
+
+            // Make the EMI Name clickable for filtering and loading for edit
+            row.innerHTML = `<td onclick="filterAndLoadEmi(${i})" style="cursor:pointer; font-weight:bold;">${emi.name}</td><td>${displayAmountPrimary}</td><td>${emi.dueDateDay}${getOrdinalSuffix(emi.dueDateDay)}</td>`;
+            let paidCount = 0;
+
+            emi.paidMonths.forEach((monthData, idx) => {
+              // Only render if month is in monthsToDisplay or if we are in 'All' view
+              if (monthsToDisplay.includes(monthData.month)) {
+                const isPaid = monthData.isPaid;
+                if (isPaid) paidCount++;
+                const cellClass = isPaid ? 'paid-cell' : 'pending-cell';
+                // Get the correct amount for this specific month
+                const monthlyEmiAmount = getEmiAmountForMonth(emi, monthData.month);
+
+                // Add to monthly remaining totals if NOT paid (only for visible rows/filtered EMI)
+                if (!isPaid) {
+                    monthlyTableRemainingTotals[monthData.month] += monthlyEmiAmount;
+                    grandTotalRemaining += monthlyEmiAmount;
+                }
+
+                // All monthly cells are now editable
+                let amountDisplayHtml = `<span class="editable-amount" onclick="startEditing(this, ${i}, ${idx})">${formatCurrency(monthlyEmiAmount)}</span>`;
+                
+                row.innerHTML += `<td class="${cellClass}">
+                  <button onclick="togglePaid(${i}, ${idx})" title="${isPaid ? 'Mark as Pending' : 'Mark as Paid'}">
+                    ${isPaid ? '✅ Paid' : '❌ Pending'}
+                  </button>
+                  <br>
+                  ${amountDisplayHtml}<br>
+                  <small>Due: ${emi.dueDateDay}${getOrdinalSuffix(emi.dueDateDay)}</small>
+                </td>`;
+              }
+            });
+
+            const totalMonths = emi.paidMonths.length;
+            const statusText = paidCount === totalMonths ? 'Fully Paid' : `${paidCount} of ${totalMonths} Paid`;
+            row.innerHTML += `<td>${statusText}</td>`;
+            row.innerHTML += `<td><button onclick="deleteEmi(${i})" class="delete-btn">Delete</button></td>`;
+            tbody.appendChild(row);
+        }
+      });
+
+      // Recalculate colspan for footer based on actual columns rendered (filter applies to months)
+      // The first cell ("Total Remaining Pay EMIs:") should span the first 3 columns (EMI Name, Amount, Deadline)
+      tfootRow.children[0].colSpan = 3; // Fixed colspan for the initial text cell
+      
+      // Clear previous monthly total cells in footer, except the first one
+      while (tfootRow.children.length > 1) {
+          tfootRow.removeChild(tfootRow.lastChild);
+      }
+
+      // Render the total row in the table footer
+      monthsToDisplay.forEach(month => {
+          const totalCell = document.createElement('td');
+          totalCell.innerHTML = `<strong>${formatCurrency(monthlyTableRemainingTotals[month])}</strong>`;
+          tfootRow.appendChild(totalCell);
+      });
+
+      // Add a cell for the overall grand total in the footer
+      const grandTotalCell = document.createElement('td');
+      grandTotalCell.colSpan = 2; // Spans Status and Actions columns in the footer
+      grandTotalCell.innerHTML = `<strong>Grand Total Remaining: ${formatCurrency(grandTotalRemaining)}</strong>`;
+      tfootRow.appendChild(grandTotalCell);
+
+      renderMonthlySummary();
+      // Ensure the dropdown selection is reflected, and only load form if we're not just clearing a filter
+      if (selectedEmiFilterIndex !== -1) {
+          loadEmiForEdit(selectedEmiFilterIndex);
+      } else {
+          cancelEmiEdit(); // Clear form state if no filter is active
+      }
+    }
+
+    // Function to start editing an amount in the table
+    function startEditing(spanElement, emiIndex, monthIndex) {
+        const currentAmount = parseFloat(spanElement.textContent.replace('₹', '').replace(/,/g, '')); // Clean and parse amount
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'editable-amount-input';
+        input.value = currentAmount;
+
+        // Save on Enter key or blur
+        input.onkeydown = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent new line in input
+                saveEditedAmount(input, emiIndex, monthIndex);
+            }
+        };
+        input.onblur = () => {
+            saveEditedAmount(input, emiIndex, monthIndex);
+        };
+
+        spanElement.replaceWith(input);
+        input.focus();
+    }
+
+    // Function to save the edited amount
+    async function saveEditedAmount(inputElement, emiIndex, monthIndex) {
+        const newValue = parseFloat(inputElement.value);
+        const emi = emiList[emiIndex];
+        const monthToUpdate = months[monthIndex]; // The actual month string (e.g., "June 2025")
+
+        // Validate the new value
+        if (isNaN(newValue) || newValue < 0) {
+            await showAlert('Please enter a valid positive number for the amount.');
+            renderEmiTable(); // Revert to previous state
+            return;
+        }
+
+        // If the EMI doesn't have a monthlyAmounts structure yet (i.e., it's a fixed EMI)
+        if (!emi.monthlyAmounts) {
+            emi.monthlyAmounts = {}; // Initialize monthlyAmounts
+            // Populate all months with its original fixed amount before updating the specific month
+            emi.paidMonths.forEach(monthData => {
+                emi.monthlyAmounts[monthData.month] = emi.amount;
+            });
+            delete emi.amount; // Remove the old fixed 'amount' property
+            if (emi.finalMonthAmount) delete emi.finalMonthAmount; // Remove if it was the Scooty special case
+        }
+        
+        // Update the specific month's amount
+        emi.monthlyAmounts[monthToUpdate] = newValue;
+        
+        renderEmiTable();
+        saveData();
+    }
+
+    function togglePaid(emiIndex, monthIndex) {
+      emiList[emiIndex].paidMonths[monthIndex].isPaid = !emiList[emiIndex].paidMonths[monthIndex].isPaid;
+      renderEmiTable();
+      saveData();
+    }
+
+    function renderMonthlySummary() {
+      const summaryToPayDiv = document.getElementById("monthlySummaryToPay");
+      const summaryPaidDiv = document.getElementById("monthlySummaryPaid");
+      summaryToPayDiv.innerHTML = "";
+      summaryPaidDiv.innerHTML = "";
+
+      let overallTotalToPay = 0;
+      let overallTotalPaid = 0;
+
+      months.forEach(month => {
+        let totalForMonthToPay = 0;
+        let totalForMonthPaid = 0;
+
+        emiList.forEach(emi => {
+          const monthData = emi.paidMonths.find(m => m.month === month);
+          if (monthData) {
+            const amount = getEmiAmountForMonth(emi, monthData.month);
+
+            if (!monthData.isPaid) {
+              totalForMonthToPay += amount;
+            } else {
+              totalForMonthPaid += amount;
+            }
+          }
+        });
+        summaryToPayDiv.innerHTML += `<div class="summary-item"><strong>${month}:</strong> <span>${formatCurrency(totalForMonthToPay)}</span></div>`;
+        summaryPaidDiv.innerHTML += `<div class="summary-item"><strong>${month}:</strong> <span>${formatCurrency(totalForMonthPaid)}</span></div>`; /* Corrected: was showing totalForMonthToPay */
+
+        overallTotalToPay += totalForMonthToPay;
+        overallTotalPaid += totalForMonthPaid;
+      });
+
+      summaryToPayDiv.innerHTML += `<div class="summary-total">Overall Total to Pay: ${formatCurrency(overallTotalToPay)}</div>`;
+      summaryPaidDiv.innerHTML += `<div class="summary-total">Overall Total Paid: ${formatCurrency(overallTotalPaid)}</div>`;
+    }
+
+    function toggleBank() {
+      const section = document.getElementById("bankSection");
+      section.style.display = section.style.display === "none" ? "block" : "none";
+    }
+
+    function renderBankTable() {
+      const bankBody = document.getElementById("bankTableBody");
+      const bankTableTotalRow = document.getElementById("bankTableTotalRow");
+      const bankSelectForEdit = document.getElementById('bankSelectForEdit');
+
+      bankBody.innerHTML = "";
+      bankSelectForEdit.innerHTML = '<option value="-1">Select a Bank...</option>'; // Reset dropdown
+      let totalBankAccounts = banks.length;
+
+      banks.forEach((b, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${b.bank}</td>
+          <td>${b.acc}</td>
+          <td>${b.ifsc}</td>
+          <td>${b.branch}</td>
+          <td>${b.card}</td>
+          <td>${b.exp}</td>
+          <td>${b.cvv}</td>
+          <td><button onclick="deleteBank(${index})" class="delete-btn">Delete</button></td>
+        `;
+        bankBody.appendChild(row);
+
+        // Populate the bank selection dropdown
+        const option = document.createElement('option');
+        option.value = index; // Store the index for easy lookup
+        option.textContent = `${index + 1}. ${b.bank}`; // Using index + 1 for display as Sl. No.
+        bankSelectForEdit.appendChild(option);
+      });
+
+      // Update the total row for bank table
+      bankTableTotalRow.innerHTML = `<td colspan="8"><strong>Total Bank Accounts: ${totalBankAccounts}</strong></td>`; // Adjusted colspan to 8
+      
+      // Reset form state after rendering
+      cancelBankEdit();
+    }
+
+    /**
+     * Loads the details of a selected bank into the input fields for editing.
+     * @param {string} selectedIndex - The index of the bank in the 'banks' array.
+     */
+    function loadBankForEdit(selectedIndex) {
+        const index = parseInt(selectedIndex);
+        if (index === -1) {
+            cancelBankEdit();
+            return;
+        }
+
+        editingBankIndex = index;
+        const bank = banks[index];
+
+        document.getElementById('newBankName').value = bank.bank || '';
+        document.getElementById('newBankAcc').value = bank.acc || '';
+        document.getElementById('newBankIFSC').value = bank.ifsc || '';
+        document.getElementById('newBankBranch').value = bank.branch || '';
+        document.getElementById('newBankCard').value = bank.card || '';
+        document.getElementById('newBankExp').value = bank.exp || '';
+        document.getElementById('newBankCVV').value = bank.cvv || '';
+
+        // Show update button, hide add button
+        document.getElementById('addBankBtn').classList.add('hidden');
+        document.getElementById('updateBankBtn').classList.remove('hidden');
+        document.getElementById('cancelEditBankBtn').classList.remove('hidden');
+    }
+
+    /**
+     * Resets the bank input form and button states.
+     */
+    function cancelBankEdit() {
+        editingBankIndex = -1; // Reset editing index
+        document.getElementById('newBankName').value = '';
+        document.getElementById('newBankAcc').value = '';
+        document.getElementById('newBankIFSC').value = '';
+        document.getElementById('newBankBranch').value = '';
+        document.getElementById('newBankCard').value = '';
+        document.getElementById('newBankExp').value = '';
+        document.getElementById('newBankCVV').value = '';
+
+        document.getElementById('bankSelectForEdit').value = -1; // Reset dropdown
+
+        // Show add button, hide update and cancel buttons
+        document.getElementById('addBankBtn').classList.remove('hidden');
+        document.getElementById('updateBankBtn').classList.add('hidden');
+        document.getElementById('cancelEditBankBtn').classList.add('hidden');
+    }
+
+    async function addEmi() {
+        if (editingEmiIndex !== -1) {
+            await showAlert("Please cancel the current EMI edit before adding a new EMI.");
+            return;
+        }
+
+        const nameInput = document.getElementById('newEmiName');
+        const amountInput = document.getElementById('newEmiAmount');
+        const dueDateDayInput = document.getElementById('newEmiDueDateDay');
+        const name = nameInput.value.trim();
+        const amount = parseFloat(amountInput.value);
+        const dueDateDay = parseInt(dueDateDayInput.value);
+
+        if (name && !isNaN(amount) && amount > 0 && !isNaN(dueDateDay) && dueDateDay >= 1 && dueDateDay <= 31) {
+            const newPaidMonths = months.map(month => ({ month: month, isPaid: false }));
+            emiList.push({ name: name, amount: amount, paidMonths: newPaidMonths, dueDateDay: dueDateDay });
+            cancelEmiEdit(); // Clear form and reset state
+            renderEmiTable();
+            await saveData();
+        } else {
+            await showAlert('Please enter valid EMI Name, Amount, and a valid Due Day (1-31). Note: For variable monthly EMIs like "Room Share", you can now edit amounts directly in the table cells after adding.');
+        }
+    }
+
+    async function updateEmiEntry() {
+        if (editingEmiIndex === -1) {
+            await showAlert("No EMI selected for update.");
+            return;
+        }
+
+        const name = document.getElementById('newEmiName').value.trim();
+        const amount = parseFloat(document.getElementById('newEmiAmount').value);
+        const dueDateDay = parseInt(document.getElementById('newEmiDueDateDay').value);
+
+        if (!name || isNaN(amount) || amount <= 0 || isNaN(dueDateDay) || dueDateDay < 1 || dueDateDay > 31) {
+            await showAlert("Please enter valid EMI Name, Amount, and Due Day for update.");
+            return;
+        }
+
+        // Update the existing EMI object
+        emiList[editingEmiIndex].name = name;
+        emiList[editingEmiIndex].amount = amount;
+        emiList[editingEmiIndex].dueDateDay = dueDateDay;
+        // Note: monthlyAmounts for variable EMIs are updated directly in table cells, not via this form.
+        // If an EMI was converted to variable via cell edit, updating via this form reverts it to a fixed amount model.
+        if (emiList[editingEmiIndex].monthlyAmounts) {
+            delete emiList[editingEmiIndex].monthlyAmounts;
+        }
+        if (emiList[editingEmiIndex].finalMonthAmount) {
+            delete emiList[editingEmiIndex].finalMonthAmount;
+        }
+
+
+        cancelEmiEdit(); // Clear form and reset state
+        renderEmiTable(); // Re-render table with updated data
+        await saveData();
+        await showAlert("EMI details updated successfully!");
+    }
+
+
+    async function deleteEmi(index) {
+      const confirmed = await showConfirm(`Are you sure you want to delete ${emiList[index].name}?`);
+      if (confirmed) {
+        emiList.splice(index, 1);
+        renderEmiTable();
+        await saveData();
+      }
+    }
+
+    async function addBank() {
+        if (editingBankIndex !== -1) {
+            await showAlert("Please cancel the current bank edit before adding a new bank.");
+            return;
+        }
+
+        const bankName = document.getElementById('newBankName').value.trim();
+        const acc = document.getElementById('newBankAcc').value.trim();
+        const ifsc = document.getElementById('newBankIFSC').value.trim();
+        const branch = document.getElementById('newBankBranch').value.trim();
+        const card = document.getElementById('newBankCard').value.trim();
+        const exp = document.getElementById('newBankExp').value.trim();
+        const cvv = document.getElementById('newBankCVV').value.trim();
+
+        if (bankName && acc) {
+            banks.push({ bank: bankName, acc, ifsc, branch, card, exp, cvv });
+            cancelBankEdit(); // Clear form and reset state
+            renderBankTable(); // Re-render to show new bank and update dropdown
+            await saveData();
+        } else {
+            await showAlert('Please enter at least Bank Name and Account Number for the bank details.');
+        }
+    }
+
+    async function updateBankEntry() {
+        if (editingBankIndex === -1) {
+            await showAlert("No bank selected for update.");
+            return;
+        }
+
+        const bankName = document.getElementById('newBankName').value.trim();
+        const acc = document.getElementById('newBankAcc').value.trim();
+        const ifsc = document.getElementById('newBankIFSC').value.trim();
+        const branch = document.getElementById('newBankBranch').value.trim();
+        const card = document.getElementById('newBankCard').value.trim();
+        const exp = document.getElementById('newBankExp').value.trim();
+        const cvv = document.getElementById('newBankCVV').value.trim();
+
+        if (!bankName || !acc) {
+            await showAlert("Bank Name and Account No. are required for update.");
+            return;
+        }
+
+        // Update the existing bank object
+        banks[editingBankIndex] = { bank: bankName, acc, ifsc, branch, card, exp, cvv };
+        
+        cancelBankEdit(); // Clear form and reset state
+        renderBankTable(); // Re-render table with updated data
+        await saveData();
+        await showAlert("Bank details updated successfully!");
+    }
+
+
+    async function deleteBank(index) {
+      const confirmed = await showConfirm(`Are you sure you want to delete the ${banks[index].bank} account?`);
+      if (confirmed) {
+        banks.splice(index, 1);
+        renderBankTable();
+        await saveData();
+      }
+    }
+
+    // Populate the month filter dropdown
+    function populateMonthFilter() {
+        const monthFilterSelect = document.getElementById('monthFilter');
+        // Clear existing options first
+        monthFilterSelect.innerHTML = '<option value="All">All Months</option>';
+        months.forEach(month => {
+            const option = document.createElement('option');
+            option.value = month;
+            option.textContent = month;
+            monthFilterSelect.appendChild(option);
+        });
+    }
+
+    // Handle month filtering
+    function filterByMonth(selectedMonth) {
+        currentMonthFilter = selectedMonth;
+        renderEmiTable(); // Re-render the table with the new filter
+    }
+
+    // Export EMI & Bank data to Excel
+    async function exportToExcel() {
+        // Prepare EMI Data
+        const emiDataForExcel = emiList.map(emi => {
+            const row = {
+                'EMI Name': emi.name,
+                'Fixed Amount': emi.amount ? formatCurrency(emi.amount) : 'N/A',
+                'Deadline Day': emi.dueDateDay + getOrdinalSuffix(emi.dueDateDay)
+            };
+            // Add monthly amounts if variable
+            if (emi.monthlyAmounts) {
+                Object.keys(emi.monthlyAmounts).forEach(month => {
+                    row[`Amount (${month})`] = emi.monthlyAmounts[month]; // Export raw number, not formatted
+                });
+            }
+            // Add paid status for each month
+            emi.paidMonths.forEach(monthData => {
+                row[`Status (${monthData.month})`] = monthData.isPaid ? 'Paid' : 'Pending';
+            });
+            return row;
+        });
+
+        // Create a workbook and add sheets
+        const wb = XLSX.utils.book_new();
+        const wsEmi = XLSX.utils.json_to_sheet(emiDataForExcel);
+        XLSX.utils.book_append_sheet(wb, wsEmi, "EMI Data");
+
+        // Download the file
+        XLSX.writeFile(wb, "EMIDashboard_Report.xlsx");
+        await showAlert('EMI data exported to Excel!');
+    }
+
+    // Download EMI Report as PDF
+    async function downloadPdf() {
+        const { jsPDF } = window.jspdf;
+        const input = document.querySelector('.emi-table-wrapper'); // Target only the EMI table wrapper
+
+        // Temporarily apply white background and padding for PDF capture
+        const originalBg = input.style.backgroundColor;
+        const originalPadding = input.style.padding;
+        const originalBoxShadow = input.style.boxShadow;
+        const originalBorder = input.style.border;
+
+        input.style.backgroundColor = '#ffffff';
+        input.style.padding = '20px';
+        input.style.boxShadow = 'none'; // Remove shadow for cleaner PDF
+        input.style.border = 'none'; // Remove border for cleaner PDF
+
+        try {
+            const canvas = await html2canvas(input, {
+                scale: 2, // Increase scale for better resolution
+                useCORS: true,
+                logging: false,
+                scrollX: -window.scrollX, // Handle horizontal scroll
+                scrollY: -window.scrollY, // Handle vertical scroll
+                windowWidth: document.documentElement.offsetWidth, // Capture full width
+                windowHeight: document.documentElement.offsetHeight // Capture full height
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4'); // 'p' for portrait, 'mm' for units, 'a4' for size
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = canvas.height * imgWidth / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            pdf.save("EMIDashboard_Report.pdf");
+            await showAlert('EMI Report downloaded as PDF!');
+
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            await showAlert('Failed to generate PDF. Check console for details.');
+        } finally {
+            // Restore original styles
+            input.style.backgroundColor = originalBg;
+            input.style.padding = originalPadding;
+            input.style.boxShadow = originalBoxShadow;
+            input.style.border = originalBorder;
+        }
+    }
+
+
+    // Function to initialize the dashboard after successful login
+    function initializeDashboard() {
+      populateMonthFilter(); // Populate filter dropdown on load
+      renderEmiTable();
+      renderBankTable();
+    }
+
+    // Focus on the PIN input field when the page loads
+    window.onload = () => {
+        pinInput.focus();
+        // The loginScreen is now a modal, so it's already visible.
+        // dashboardContent is hidden by default.
+    };
+  </script>
+</body>
+</html>
